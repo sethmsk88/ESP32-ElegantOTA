@@ -28,7 +28,7 @@
 // WiFiManager instance for handling dynamic WiFi configuration
 WiFiManager wifiManager;
 
-AsyncWebServer server(80);
+AsyncWebServer server(8080);
 
 unsigned long ota_progress_millis = 0;
 
@@ -150,7 +150,7 @@ void setupWebServerAndOTA() {
     html += "<p><strong>IP Address:</strong> " + WiFi.localIP().toString() + "</p>";
     html += "<p><strong>Signal Strength:</strong> " + String(WiFi.RSSI()) + " dBm</p>";
     html += "<hr>";
-    html += "<p><a href='/update'>🔄 OTA Update Portal</a></p>";
+    html += "<p><a href='/update'>OTA Update Portal</a></p>";
     html += "<p><em>Device is ready for Over-The-Air updates</em></p>";
     html += "</body></html>";
     request->send(200, "text/html", html);
