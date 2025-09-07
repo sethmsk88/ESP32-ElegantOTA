@@ -56,8 +56,12 @@ void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
     Serial.println("OTA update finished successfully!");
+    Serial.println("Rebooting device in 3 seconds...");
+    delay(3000); // Give time to see the message
+    ESP.restart(); // Automatically reboot the device
   } else {
     Serial.println("There was an error during OTA update!");
+    Serial.println("Device will continue running with previous firmware");
   }
   // <Add your own code here>
 }
@@ -86,9 +90,6 @@ void configureWiFiManager() {
   // Set connection timeout (30 seconds)
   wifiManager.setConnectTimeout(30);
   
-  // Set device hostname and access point name - using autoConnect parameter instead
-  // The AP name will be set when calling autoConnect() or startConfigPortal()
-  
   // Set minimum signal quality (0-100%)
   wifiManager.setMinimumSignalQuality(20);
   
@@ -97,6 +98,30 @@ void configureWiFiManager() {
   
   // Set debug output
   wifiManager.setDebugOutput(true);
+  
+  // Add custom HTML to show device information
+  String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";
+  customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>🔧 ESP32 ElegantOTA Configuration</h3>";
+  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>Device:</strong> ESP32 Feather S3</p>";
+  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>OTA Server Port:</strong> 8080</p>";
+  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://[IP-Address]:8080/update</code></p>";
+  customHTML += "</div>";
+  
+  // Set the custom HTML (this appears at the top of the config page)
+  wifiManager.setCustomHeadElement(customHTML.c_str());
+  
+  // Add a save config callback to show connection details
+  wifiManager.setSaveConfigCallback([]() {
+    Serial.println("CONFIG: WiFi credentials saved successfully!");
+  });
+  
+  // Add a callback for when WiFi connects during config portal
+  wifiManager.setAPCallback([](WiFiManager *myWiFiManager) {
+    Serial.println("CONFIG: Configuration portal started");
+    Serial.print("CONFIG: Connect to WiFi network: ");
+    Serial.println(myWiFiManager->getConfigPortalSSID());
+    Serial.println("CONFIG: Open browser to configure WiFi");
+  });
   
   Serial.println("CONFIG: WiFiManager configured");
 }
@@ -124,6 +149,11 @@ void setupOTA() {
     Serial.println(WiFi.SSID());
     Serial.print("WIFI: IP address: ");
     Serial.println(WiFi.localIP());
+    Serial.println("=========================================");
+    Serial.println("🌐 OTA UPDATE PORTAL READY!");
+    Serial.printf("📱 Access from browser: http://%s:8080\n", WiFi.localIP().toString().c_str());
+    Serial.printf("🔄 Direct OTA link: http://%s:8080/update\n", WiFi.localIP().toString().c_str());
+    Serial.println("=========================================");
     
     // Start the web server and OTA
     setupWebServerAndOTA();
@@ -192,6 +222,18 @@ void handleOTA() {
     Serial.println("CONFIG: Connect to 'ESP32-ElegantOTA-Config' WiFi network");
     Serial.println("CONFIG: Portal will timeout after 3 minutes");
     
+    // Add custom HTML with connection success message that will show IP
+    String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
+    successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
+    successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:</p>";
+    successHTML += "<p style='margin: 10px 0; font-size: 18px; font-weight: bold; color: #007bff;'><a href='http://" + WiFi.localIP().toString() + ":8080/update' target='_blank'>http://" + WiFi.localIP().toString() + ":8080/update</a></p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>Check your serial monitor for the exact IP address</p>";
+    successHTML += "</div>";
+    
+    // Set the success page HTML
+    wifiManager.setCustomHeadElement(successHTML.c_str());
+    
     // Start configuration portal (blocking)
     wifiManager.setConfigPortalBlocking(true);
     bool result = wifiManager.startConfigPortal("ESP32-ElegantOTA-Config");
@@ -202,6 +244,11 @@ void handleOTA() {
       Serial.println(WiFi.SSID());
       Serial.print("CONFIG: IP address: ");
       Serial.println(WiFi.localIP());
+      Serial.println("=========================================");
+      Serial.println("🌐 OTA UPDATE PORTAL READY!");
+      Serial.printf("📱 Access from browser: http://%s:8080\n", WiFi.localIP().toString().c_str());
+      Serial.printf("🔄 Direct OTA link: http://%s:8080/update\n", WiFi.localIP().toString().c_str());
+      Serial.println("=========================================");
       
       // Setup web server and OTA after successful configuration
       setupWebServerAndOTA();
