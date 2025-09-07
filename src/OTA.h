@@ -152,7 +152,7 @@ void setupOTA() {
   wifiManager.setConfigPortalBlocking(false);
   
   // Attempt connection with saved credentials
-  bool connected = wifiManager.autoConnect("ESP32-ElegantOTA-Config");
+  bool connected = wifiManager.autoConnect("LL-MorphStaff");
   
   if (connected) {
     Serial.println("");
@@ -172,7 +172,7 @@ void setupOTA() {
   } else {
     Serial.println("WIFI: No saved credentials or connection failed");
     Serial.println("WIFI: Starting in configuration mode...");
-    Serial.println("WIFI: Connect to 'ESP32-ElegantOTA-Config' WiFi network to configure");
+    Serial.println("WIFI: Connect to 'LL-MorphStaff' WiFi network to configure");
   }
 }
 
@@ -238,8 +238,8 @@ void handleOTA() {
     String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
     successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
     successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
-    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:<br />";
-    successHTML += "<a href='http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update' target='_blank'>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</a></p>";
+    // successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:<br />";
+    // successHTML += "<a href='http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update' target='_blank'>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</a></p>";
     successHTML += "</div>";
     
     // Set the success page HTML
@@ -247,7 +247,7 @@ void handleOTA() {
     
     // Start configuration portal (blocking)
     wifiManager.setConfigPortalBlocking(true);
-    bool result = wifiManager.startConfigPortal("ESP32-ElegantOTA-Config");
+    bool result = wifiManager.startConfigPortal("Morph Staff - OTA Update Config");
     
     if (result) {
       Serial.println("CONFIG: WiFi configured successfully!");
