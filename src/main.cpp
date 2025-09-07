@@ -48,8 +48,8 @@ void checkButton() {
     
     // Check if button was held long enough to trigger configuration
     if (pressDuration >= BUTTON_PRESS_TIME) {
-      Serial.printf("DEBUG: Button held for %lu ms - Starting config portal\n", pressDuration);
-      // TODO: Signal OTA system to start WiFi config portal
+      Serial.printf("DEBUG: Button held for %lu ms - Starting WiFi config portal\n", pressDuration);
+      startConfigPortal(); // Trigger WiFiManager configuration portal
     } else {
       Serial.printf("DEBUG: Button press too short (%lu ms) - ignored\n", pressDuration);
     }
@@ -82,7 +82,13 @@ void heartbeat() {
   
   // Display system status every 2 seconds including WiFi connectivity
   if (millis() - lastCounterTime >= 2000) {
-    Serial.printf("Counter: %lu (WiFi: %s)\n", counter, WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
+    String wifiStatus;
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiStatus = "Connected (" + WiFi.SSID() + " - " + WiFi.localIP().toString() + ")";
+    } else {
+      wifiStatus = "Disconnected";
+    }
+    Serial.printf("Counter: %lu (WiFi: %s)\n", counter, wifiStatus.c_str());
     counter++;
     lastCounterTime = millis();
   }
@@ -135,7 +141,8 @@ void loop(void) {
   // Monitor hardware button for WiFi configuration requests
   checkButton();
   
-  ElegantOTA.loop();   // Process any pending OTA update operations
+  // Handle WiFiManager operations and configuration portal
+  handleOTA();
 
   // LED heartbeat pattern and status display
   // This provides visual confirmation that the main loop is running
