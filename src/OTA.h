@@ -28,7 +28,9 @@
 // WiFiManager instance for handling dynamic WiFi configuration
 WiFiManager wifiManager;
 
-AsyncWebServer server(8080);
+const int OTA_SERVER_PORT = 8080;
+
+AsyncWebServer server(OTA_SERVER_PORT);
 
 unsigned long ota_progress_millis = 0;
 
@@ -103,8 +105,8 @@ void configureWiFiManager() {
   String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";
   customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>🔧 ESP32 ElegantOTA Configuration</h3>";
   customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>Device:</strong> ESP32 Feather S3</p>";
-  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>OTA Server Port:</strong> 8080</p>";
-  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://[IP-Address]:8080/update</code></p>";
+  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>OTA Server Port:</strong> " + String(OTA_SERVER_PORT) + "</p>";
+  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</code></p>";
   customHTML += "</div>";
   
   // Set the custom HTML (this appears at the top of the config page)
@@ -150,9 +152,9 @@ void setupOTA() {
     Serial.print("WIFI: IP address: ");
     Serial.println(WiFi.localIP());
     Serial.println("=========================================");
-    Serial.println("🌐 OTA UPDATE PORTAL READY!");
-    Serial.printf("📱 Access from browser: http://%s:8080\n", WiFi.localIP().toString().c_str());
-    Serial.printf("🔄 Direct OTA link: http://%s:8080/update\n", WiFi.localIP().toString().c_str());
+    Serial.println("OTA UPDATE PORTAL READY!");
+    Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
+    Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
     Serial.println("=========================================");
     
     // Start the web server and OTA
@@ -226,9 +228,8 @@ void handleOTA() {
     String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
     successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
     successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
-    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:</p>";
-    successHTML += "<p style='margin: 10px 0; font-size: 18px; font-weight: bold; color: #007bff;'><a href='http://" + WiFi.localIP().toString() + ":8080/update' target='_blank'>http://" + WiFi.localIP().toString() + ":8080/update</a></p>";
-    successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>Check your serial monitor for the exact IP address</p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:<br />";
+    successHTML += "<a href='http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update' target='_blank'>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</a></p>";
     successHTML += "</div>";
     
     // Set the success page HTML
@@ -245,9 +246,9 @@ void handleOTA() {
       Serial.print("CONFIG: IP address: ");
       Serial.println(WiFi.localIP());
       Serial.println("=========================================");
-      Serial.println("🌐 OTA UPDATE PORTAL READY!");
-      Serial.printf("📱 Access from browser: http://%s:8080\n", WiFi.localIP().toString().c_str());
-      Serial.printf("🔄 Direct OTA link: http://%s:8080/update\n", WiFi.localIP().toString().c_str());
+      Serial.println("OTA UPDATE PORTAL READY!");
+      Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
+      Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
       Serial.println("=========================================");
       
       // Setup web server and OTA after successful configuration
