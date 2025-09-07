@@ -39,6 +39,7 @@ bool shouldStartConfigPortal = false;
 
 // Forward declarations
 void setupWebServerAndOTA();
+void startWiFiConnection();
 
 void onOTAStart() {
   // Log when OTA has started
@@ -75,8 +76,12 @@ void onOTAEnd(bool success) {
  * is pressed to trigger the WiFi setup portal.
  */
 void startConfigPortal() {
+  Serial.println("CONFIG: Button pressed - Starting WiFi connection process");
+  Serial.println("WIFI: Starting configuration portal...");
+  // Set the flag to start config portal in the main loop
   shouldStartConfigPortal = true;
-  Serial.println("CONFIG: Configuration portal requested");
+
+  startWiFiConnection();
 }
 
 /**
@@ -113,10 +118,7 @@ void configureWiFiManager() {
   
   // Add custom HTML to show device information
   String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";
-  customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>🔧 ESP32 ElegantOTA Configuration</h3>";
-  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>Device:</strong> ESP32 Feather S3</p>";
-  customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>OTA Server Port:</strong> " + String(OTA_SERVER_PORT) + "</p>";
-  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://[IP-Address]:" + String(OTA_SERVER_PORT) + "/update</code></p>";
+  customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>ESP32 ElegantOTA Configuration</h3>";
   customHTML += "</div>";
   
   // Set the custom HTML (this appears at the top of the config page)
@@ -142,16 +144,28 @@ void setupOTA() {
   Serial.println("SETUP: Configuring WiFiManager...");
   configureWiFiManager();
   
-  // Try to connect with saved credentials first
-  Serial.println("SETUP: Attempting to connect with saved credentials...");
+  Serial.println("SETUP: WiFiManager configured and ready");
+  Serial.println("SETUP: Device started - Hold config button for 3 seconds to start WiFi configuration");
+  Serial.println("SETUP: No automatic WiFi connection will be attempted");
+}
+
+/**
+ * Attempt WiFi connection with saved credentials or start configuration portal
+ * 
+ * This function is called when the user presses the configuration button.
+ * It will try to connect with saved credentials first, and if that fails,
+ * it will start the configuration portal.
+ */
+void startWiFiConnection() {
+  Serial.println("WIFI: Starting WiFi connection process...");
   
   // Set WiFi mode to station
   WiFi.mode(WIFI_STA);
   
-  // Try auto-connecting with saved credentials (non-blocking)
+  // Try auto-connecting with saved credentials first (non-blocking)
   wifiManager.setConfigPortalBlocking(false);
   
-  // Attempt connection with saved credentials
+  Serial.println("WIFI: Attempting to connect with saved credentials...");
   bool connected = wifiManager.autoConnect("LL-MorphStaff");
   
   if (connected) {
@@ -163,16 +177,14 @@ void setupOTA() {
     Serial.println(WiFi.localIP());
     Serial.println("=========================================");
     Serial.println("OTA UPDATE PORTAL READY!");
-    Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
-    Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
+    Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
+    Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
     Serial.println("=========================================");
     
     // Start the web server and OTA
     setupWebServerAndOTA();
   } else {
     Serial.println("WIFI: No saved credentials or connection failed");
-    Serial.println("WIFI: Starting in configuration mode...");
-    Serial.println("WIFI: Connect to 'LL-MorphStaff' WiFi network to configure");
   }
 }
 
@@ -246,8 +258,8 @@ void handleOTA() {
     wifiManager.setCustomHeadElement(successHTML.c_str());
     
     // Start configuration portal (blocking)
-    wifiManager.setConfigPortalBlocking(true);
-    bool result = wifiManager.startConfigPortal("Morph Staff - OTA Update Config");
+    wifiManager.setConfigPortalBlocking(false);
+    bool result = wifiManager.startConfigPortal("LL-MorphStaff");
     
     if (result) {
       Serial.println("CONFIG: WiFi configured successfully!");
@@ -268,7 +280,7 @@ void handleOTA() {
     }
     
     // Reset to non-blocking mode
-    wifiManager.setConfigPortalBlocking(false);
+    // wifiManager.setConfigPortalBlocking(false);
   }
   
   // Monitor WiFi connection status
