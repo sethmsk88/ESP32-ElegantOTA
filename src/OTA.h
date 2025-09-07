@@ -94,8 +94,8 @@ void configureWiFiManager() {
   // Set configuration portal timeout (3 minutes)
   wifiManager.setConfigPortalTimeout(180);
   
-  // Set connection timeout (30 seconds)
-  wifiManager.setConnectTimeout(30);
+  // Set connection timeout (15 seconds - reduced from 30)
+  wifiManager.setConnectTimeout(15);
   
   // Set minimum signal quality (0-100%)
   wifiManager.setMinimumSignalQuality(20);
@@ -105,6 +105,15 @@ void configureWiFiManager() {
   
   // Set debug output
   wifiManager.setDebugOutput(true);
+  
+  // Optimize WiFi settings for faster AP startup
+  wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
+  wifiManager.setWiFiAutoReconnect(false); // Don't auto-reconnect during portal
+  wifiManager.setCleanConnect(true); // Clean previous WiFi connection before starting AP
+  
+  // Don't auto-close the portal after successful connection
+  // This allows users to see the success message and access other menu items
+  wifiManager.setBreakAfterConfig(false);
   
   // Configure which menu items (buttons) to show
   // Available options: "wifi", "wifinoscan", "info", "param", "close", "restart", "exit", "erase", "update"
@@ -159,33 +168,62 @@ void setupOTA() {
 void startWiFiConnection() {
   Serial.println("WIFI: Starting WiFi connection process...");
   
+  // Ensure WiFi is properly disconnected and cleaned up first
+  WiFi.disconnect(true);
+  delay(100);
+  
   // Set WiFi mode to station
   WiFi.mode(WIFI_STA);
+  delay(100);
   
-  // Try auto-connecting with saved credentials first (non-blocking)
-  wifiManager.setConfigPortalBlocking(false);
-  
+  // First, try to connect with saved credentials without starting a portal
   Serial.println("WIFI: Attempting to connect with saved credentials...");
-  bool connected = wifiManager.autoConnect("LL-MorphStaff");
   
-  if (connected) {
-    Serial.println("");
-    Serial.println("WIFI: Connected successfully!");
-    Serial.print("WIFI: Connected to: ");
-    Serial.println(WiFi.SSID());
-    Serial.print("WIFI: IP address: ");
-    Serial.println(WiFi.localIP());
-    Serial.println("=========================================");
-    Serial.println("OTA UPDATE PORTAL READY!");
-    Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
-    Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
-    Serial.println("=========================================");
+  // Check if we have saved credentials
+  if (wifiManager.getWiFiIsSaved()) {
+    Serial.println("WIFI: Found saved credentials, attempting connection...");
+    WiFi.begin(); // Use saved credentials
     
-    // Start the web server and OTA
-    setupWebServerAndOTA();
+    // Wait up to 10 seconds for connection
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("");
+      Serial.println("WIFI: Connected successfully with saved credentials!");
+      Serial.print("WIFI: Connected to: ");
+      Serial.println(WiFi.SSID());
+      Serial.print("WIFI: IP address: ");
+      Serial.println(WiFi.localIP());
+      Serial.println("=========================================");
+      Serial.println("OTA UPDATE PORTAL READY!");
+      Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
+      Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
+      Serial.println("=========================================");
+      
+      // Start the web server and OTA
+      setupWebServerAndOTA();
+      return; // Successfully connected, exit function
+    } else {
+      Serial.println("");
+      Serial.println("WIFI: Failed to connect with saved credentials");
+    }
   } else {
-    Serial.println("WIFI: No saved credentials or connection failed");
+    Serial.println("WIFI: No saved credentials found");
   }
+  
+  // Clean up WiFi before starting AP mode
+  Serial.println("WIFI: Cleaning up WiFi connection...");
+  WiFi.disconnect(true);
+  delay(500); // Give more time for cleanup
+  
+  // If we get here, either no saved credentials or connection failed
+  Serial.println("WIFI: Starting configuration portal...");
+  shouldStartConfigPortal = true; // Let the main loop handle the portal
 }
 
 /**
@@ -243,7 +281,7 @@ void handleOTA() {
     shouldStartConfigPortal = false;
     
     Serial.println("CONFIG: Starting configuration portal...");
-    Serial.println("CONFIG: Connect to 'ESP32-ElegantOTA-Config' WiFi network");
+    Serial.println("CONFIG: Connect to 'LL-MorphStaff' WiFi network");
     Serial.println("CONFIG: Portal will timeout after 3 minutes");
     
     // Add custom HTML with connection success message that will show IP
@@ -258,7 +296,7 @@ void handleOTA() {
     wifiManager.setCustomHeadElement(successHTML.c_str());
     
     // Start configuration portal (blocking)
-    wifiManager.setConfigPortalBlocking(false);
+    wifiManager.setConfigPortalBlocking(true);
     bool result = wifiManager.startConfigPortal("LL-MorphStaff");
     
     if (result) {
