@@ -101,12 +101,22 @@ void configureWiFiManager() {
   // Set debug output
   wifiManager.setDebugOutput(true);
   
+  // Configure which menu items (buttons) to show
+  // Available options: "wifi", "wifinoscan", "info", "param", "close", "restart", "exit", "erase", "update"
+  std::vector<const char *> menu = {
+    "wifi",     // Configure WiFi (main configuration page)
+    "info",     // Device information page
+    "restart",  // Restart ESP32 button
+    "erase"     // Erase WiFi credentials button (factory reset)
+  };
+  wifiManager.setMenu(menu);
+  
   // Add custom HTML to show device information
   String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";
   customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>🔧 ESP32 ElegantOTA Configuration</h3>";
   customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>Device:</strong> ESP32 Feather S3</p>";
   customHTML += "<p style='margin: 5px 0; font-size: 14px;'><strong>OTA Server Port:</strong> " + String(OTA_SERVER_PORT) + "</p>";
-  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</code></p>";
+  customHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>After connecting, access OTA updates at:<br><code>http://[IP-Address]:" + String(OTA_SERVER_PORT) + "/update</code></p>";
   customHTML += "</div>";
   
   // Set the custom HTML (this appears at the top of the config page)
