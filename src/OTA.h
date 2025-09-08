@@ -37,6 +37,12 @@ unsigned long ota_progress_millis = 0;
 // Flag to indicate if configuration portal should be started
 bool shouldStartConfigPortal = false;
 
+// Flag to track if portal is currently active
+bool isPortalActive = false;
+
+// Flag to track if OTA server has been set up
+bool isOTAServerRunning = false;
+
 // Forward declarations
 void setupWebServerAndOTA();
 void startWiFiConnection();
@@ -133,17 +139,18 @@ void configureWiFiManager() {
   // Set the custom HTML (this appears at the top of the config page)
   wifiManager.setCustomHeadElement(customHTML.c_str());
   
-  // Add a save config callback to show connection details
-  wifiManager.setSaveConfigCallback([]() {
-    Serial.println("CONFIG: WiFi credentials saved successfully!");
-  });
-  
   // Add a callback for when WiFi connects during config portal
   wifiManager.setAPCallback([](WiFiManager *myWiFiManager) {
     Serial.println("CONFIG: Configuration portal started");
     Serial.print("CONFIG: Connect to WiFi network: ");
     Serial.println(myWiFiManager->getConfigPortalSSID());
     Serial.println("CONFIG: Portal will timeout after 3 minutes");
+  });
+  
+  // Add callback for when WiFi connects successfully during portal
+  wifiManager.setSaveConfigCallback([]() {
+    Serial.println("CONFIG: WiFi credentials saved successfully!");
+    Serial.println("CONFIG: WiFi connection established during portal session");
   });
   
   Serial.println("CONFIG: WiFiManager configured");
@@ -217,7 +224,7 @@ void startWiFiConnection() {
   delay(500); // Give more time for cleanup
   
   // If we get here, either no saved credentials or connection failed
-  Serial.println("WIFI: Starting configuration portal...");
+  Serial.println("Set shouldStartConfigPortal = true");
   shouldStartConfigPortal = true; // Let the main loop handle the portal
 }
 
@@ -225,9 +232,15 @@ void startWiFiConnection() {
  * Setup web server and ElegantOTA functionality
  * 
  * Called after successful WiFi connection to initialize the web server
- * and ElegantOTA components.
+ * and ElegantOTA components. Includes protection against multiple calls.
  */
 void setupWebServerAndOTA() {
+  // Prevent multiple server setups
+  if (isOTAServerRunning) {
+    Serial.println("OTA: Server already running, skipping setup");
+    return;
+  }
+
   // Basic web server route - automatically redirect to OTA update page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->redirect("/update");
@@ -243,7 +256,146 @@ void setupWebServerAndOTA() {
 
   // Start the web server
   server.begin();
-  Serial.println("OTA Web server started");
+  isOTAServerRunning = true;
+}
+
+/**
+ * Start the WiFi configuration portal if requested
+ * 
+ * Handles the logic for starting a non-blocking configuration portal
+ * when the shouldStartConfigPortal flag is set.
+ */
+void handlePortalStartup() {
+  // Check if configuration portal should be started
+  if (shouldStartConfigPortal && !isPortalActive) {
+    shouldStartConfigPortal = false;
+    
+    // Don't start portal if WiFi is already connected
+    // if (WiFi.status() == WL_CONNECTED) {
+    //   Serial.println("CONFIG: WiFi already connected, skipping portal startup");
+    //   Serial.print("CONFIG: Connected to: ");
+    //   Serial.println(WiFi.SSID());
+    //   Serial.print("CONFIG: IP address: ");
+    //   Serial.println(WiFi.localIP());
+    //   return;
+    // }
+    
+    isPortalActive = true;
+    
+    Serial.println("CONFIG: Starting WiFi configuration portal (non-blocking)...");
+
+    // Start configuration portal (non-blocking)
+    wifiManager.setConfigPortalBlocking(false);
+    
+    // Ensure portal stays open after successful connection
+    wifiManager.setBreakAfterConfig(false);
+    
+    // Add custom HTML with connection success message that will show IP
+    String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
+    successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
+    successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>Portal will remain open until 3-minute timeout</p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>You can now use other menu options or wait for automatic timeout</p>";
+    successHTML += "</div>";
+    
+    // Set the success page HTML
+    wifiManager.setCustomHeadElement(successHTML.c_str());   
+
+    if (WiFi.status() != WL_CONNECTED) {
+      if (wifiManager.startConfigPortal("LL-MorphStaff") == false) {
+        Serial.println("CONFIG: Failed to start configuration portal");
+        isPortalActive = false;
+      } else {
+        Serial.println("CONFIG: Configuration portal started successfully (non-blocking)");
+        Serial.println("CONFIG: Main loop will continue while portal is active");
+      }
+    }
+    else {
+      Serial.println("CONFIG: WiFi connected before portal start, skipping portal");
+    }
+  }
+}
+
+/**
+ * Monitor active configuration portal status
+ * 
+ * Handles monitoring of an active portal, including WiFi connection detection
+ * during portal session and portal timeout detection.
+ */
+void monitorActivePortal() {
+  // Check if portal is active and monitor its status
+  if (isPortalActive) {
+    // Check if WiFi connected while portal is running
+    if (WiFi.status() == WL_CONNECTED && !isOTAServerRunning) {
+      Serial.println("CONFIG: WiFi connected during portal session!");
+      Serial.print("CONFIG: Connected to: ");
+      Serial.println(WiFi.SSID());
+      Serial.print("CONFIG: IP address: ");
+      Serial.println(WiFi.localIP());
+      
+      // Setup web server and OTA immediately when WiFi connects
+      setupWebServerAndOTA();
+      
+      // Note: Portal may still be active, but OTA is now available
+      Serial.println("CONFIG: OTA server started while portal remains active");
+    }
+    
+    // Check if portal has timed out or been closed
+    static unsigned long portalCheckTime = 0;
+    if (millis() - portalCheckTime > 5000) { // Check every 5 seconds
+      portalCheckTime = millis();
+      
+      Serial.println("CONFIG: Checking if configuration portal is still active...");
+
+      // If WiFiManager is no longer in portal mode, the portal has ended
+      if (!wifiManager.getConfigPortalActive()) {
+        Serial.println("CONFIG: Configuration portal has ended");
+        isPortalActive = false;
+        
+        if (WiFi.status() == WL_CONNECTED && !isOTAServerRunning) {
+          // WiFi connected but OTA server not started yet
+          setupWebServerAndOTA();
+        } else if (WiFi.status() != WL_CONNECTED) {
+          Serial.println("CONFIG: Portal ended without successful connection");
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Monitor WiFi connection status when not in portal mode
+ * 
+ * Handles WiFi connection monitoring, reconnection detection, and 
+ * OTA server restart when connection is restored.
+ */
+void monitorWiFiConnection() {
+  // Monitor WiFi connection status (only when not in portal mode)
+  if (!isPortalActive) {
+    static unsigned long lastWiFiCheck = 0;
+    static bool wasConnected = false;
+    
+    if (millis() - lastWiFiCheck >= 5000) { // Check every 5 seconds
+      bool isConnected = (WiFi.status() == WL_CONNECTED);
+      
+      if (wasConnected && !isConnected) {
+        Serial.println("WIFI: Connection lost - attempting reconnection...");
+        isOTAServerRunning = false; // Will need to restart server when reconnected
+      } else if (!wasConnected && isConnected) {
+        Serial.println("WIFI: Connection restored!");
+        Serial.print("WIFI: IP address: ");
+        Serial.println(WiFi.localIP());
+        
+        // Restart OTA server if it was running before
+        if (!isOTAServerRunning) {
+          setupWebServerAndOTA();
+        }
+      }
+      
+      wasConnected = isConnected;
+      lastWiFiCheck = millis();
+    }
+  }
 }
 
 /**
@@ -257,78 +409,11 @@ void setupWebServerAndOTA() {
  * Call this function regularly from loop() for proper operation.
  */
 void handleOTA() {
-  // Process WiFiManager operations
+  // Process WiFiManager operations (required for non-blocking mode)
   wifiManager.process();
   
-  // Check if configuration portal should be started
-  if (shouldStartConfigPortal) {
-    shouldStartConfigPortal = false;
-    
-    Serial.println("CONFIG: Starting WiFi configuration portal...");
-    
-    // Ensure portal stays open after successful connection
-    wifiManager.setBreakAfterConfig(false);
-    
-    // Add custom HTML with connection success message that will show IP
-    String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
-    successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
-    successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
-    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>Portal will remain open until 3-minute timeout</p>";
-    successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>You can now use other menu options or wait for automatic timeout</p>";
-    // successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:<br />";
-    // successHTML += "<a href='http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update' target='_blank'>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</a></p>";
-    successHTML += "</div>";
-    
-    // Set the success page HTML
-    wifiManager.setCustomHeadElement(successHTML.c_str());
-    
-    // Start configuration portal (blocking)
-    wifiManager.setConfigPortalBlocking(true);
-    bool result = wifiManager.startConfigPortal("LL-MorphStaff");
-    
-    // Portal has finished (either timed out, user exited, or error occurred)
-    Serial.println("CONFIG: Configuration portal has ended");
-    
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("CONFIG: WiFi configured successfully!");
-      Serial.print("CONFIG: Connected to: ");
-      Serial.println(WiFi.SSID());
-      Serial.print("CONFIG: IP address: ");
-      Serial.println(WiFi.localIP());
-      Serial.println("=========================================");
-      Serial.println("OTA UPDATE PORTAL READY!");
-      Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
-      Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
-      Serial.println("=========================================");
-      
-      // Setup web server and OTA after portal ends and we have connection
-      setupWebServerAndOTA();
-    } else if (result) {
-      Serial.println("CONFIG: Configuration portal timed out - no connection established");
-    } else {
-      Serial.println("CONFIG: Configuration portal failed or was cancelled");
-    }
-    
-    // Reset to non-blocking mode
-    // wifiManager.setConfigPortalBlocking(false);
-  }
-  
-  // Monitor WiFi connection status
-  static unsigned long lastWiFiCheck = 0;
-  static bool wasConnected = false;
-  
-  if (millis() - lastWiFiCheck >= 5000) { // Check every 5 seconds
-    bool isConnected = (WiFi.status() == WL_CONNECTED);
-    
-    if (wasConnected && !isConnected) {
-      Serial.println("WIFI: Connection lost - attempting reconnection...");
-    } else if (!wasConnected && isConnected) {
-      Serial.println("WIFI: Connection restored!");
-      Serial.print("WIFI: IP address: ");
-      Serial.println(WiFi.localIP());
-    }
-    
-    wasConnected = isConnected;
-    lastWiFiCheck = millis();
-  }
+  // Handle each logical component
+  handlePortalStartup();
+  monitorActivePortal();
+  monitorWiFiConnection();
 }
