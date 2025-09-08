@@ -40,7 +40,7 @@ void checkButton() {
     // Button transition: not pressed -> pressed
     buttonPressed = true;
     buttonPressStart = millis();  // Record when button press started
-    Serial.println("DEBUG: Config button press detected...");
+    Serial.println(F("DEBUG: Config button press detected..."));
   } else if (!currentButtonState && buttonPressed) {
     // Button transition: pressed -> not pressed (released)
     buttonPressed = false;
@@ -53,7 +53,7 @@ void checkButton() {
     
     // Action for a "button press" (and release)
     } else if (pressDuration > 50) { // Debounce threshold of 50ms
-      Serial.println("DEBUG: Button clicked, disabling WiFi services...");
+      Serial.println(F("DEBUG: Button clicked, disabling WiFi services..."));
       disableWiFi(); // Call the new function to shut down WiFi
     }
   }
@@ -118,14 +118,14 @@ void setup(void) {
   pinMode(CONFIG_BUTTON_PIN, INPUT_PULLUP);
   Serial.printf("Config button on pin %d (hold for %d seconds)\n", CONFIG_BUTTON_PIN, BUTTON_PRESS_TIME / 1000);
 
-  Serial.println("=== ESP32 Starting Up ===");
-  Serial.println("About to call setupOTA()...");
+  Serial.println(F("=== ESP32 Starting Up ==="));
+  Serial.println(F("About to call setupOTA()..."));
   
   // Initialize the non-blocking OTA/WiFi management system
   setupOTA();
   
-  Serial.println("setupOTA() completed successfully!");
-  Serial.println("=== Entering Main Loop ===");
+  Serial.println(F("setupOTA() completed successfully!"));
+  Serial.println(F("=== Entering Main Loop ==="));
 }
 
 /**

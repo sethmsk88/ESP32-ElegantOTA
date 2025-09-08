@@ -25,6 +25,8 @@
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
 
+// #define OTA_DEBUG_ENABLED
+
 // WiFiManager instance for handling dynamic WiFi configuration
 WiFiManager wifiManager;
 
@@ -49,28 +51,35 @@ void startWiFiConnection();
 
 void onOTAStart() {
   // Log when OTA has started
-  Serial.println("OTA update started!");
+  Serial.println(F("OTA update started!"));
   // <Add your own code -here>
 }
 
 void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();+
+    ota_progress_millis = millis();
+
+    #ifdef OTA_DEBUG_ENABLED
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+    #endif
   }
 }
 
 void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
-    Serial.println("OTA update finished successfully!");
-    Serial.println("Rebooting device in 3 seconds...");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("OTA update finished successfully!"));
+    Serial.println(F("Rebooting device in 3 seconds..."));
+    #endif
     delay(3000); // Give time to see the message
     ESP.restart(); // Automatically reboot the device
   } else {
-    Serial.println("There was an error during OTA update!");
-    Serial.println("Device will continue running with previous firmware");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("There was an error during OTA update!"));
+    Serial.println(F("Device will continue running with previous firmware"));
+    #endif
   }
   // <Add your own code here>
 }
@@ -82,8 +91,10 @@ void onOTAEnd(bool success) {
  * is pressed to trigger the WiFi setup portal.
  */
 void startConfigPortal() {
-  Serial.println("CONFIG: Button pressed - Starting WiFi connection process");
-  Serial.println("WIFI: Starting configuration portal...");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("CONFIG: Button pressed - Starting WiFi connection process"));
+  Serial.println(F("WIFI: Starting configuration portal..."));
+  #endif
   // Set the flag to start config portal in the main loop
   shouldStartConfigPortal = true;
 
@@ -140,28 +151,38 @@ void configureWiFiManager() {
   
   // Add a callback for when WiFi connects during config portal
   wifiManager.setAPCallback([](WiFiManager *myWiFiManager) {
-    Serial.println("CONFIG: Configuration portal started");
-    Serial.print("CONFIG: Connect to WiFi network: ");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("CONFIG: Configuration portal started"));
+    Serial.print(F("CONFIG: Connect to WiFi network: "));
     Serial.println(myWiFiManager->getConfigPortalSSID());
-    Serial.println("CONFIG: Portal will timeout after 3 minutes");
+    Serial.println(F("CONFIG: Portal will timeout after 3 minutes"));
+    #endif
   });
   
   // Add callback for when WiFi connects successfully during portal
   wifiManager.setSaveConfigCallback([]() {
-    Serial.println("CONFIG: WiFi credentials saved successfully!");
-    Serial.println("CONFIG: WiFi connection established during portal session");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("CONFIG: WiFi credentials saved successfully!"));
+    Serial.println(F("CONFIG: WiFi connection established during portal session"));
+    #endif
   });
-  
-  Serial.println("CONFIG: WiFiManager configured");
+
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("CONFIG: WiFiManager configured"));
+  #endif
 }
 
 void setupOTA() {
-  Serial.println("SETUP: Configuring WiFiManager...");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("SETUP: Configuring WiFiManager..."));
+  #endif
   configureWiFiManager();
-  
-  Serial.println("SETUP: WiFiManager configured and ready");
-  Serial.println("SETUP: Device started - Hold config button for 3 seconds to start WiFi configuration");
-  Serial.println("SETUP: No automatic WiFi connection will be attempted");
+
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("SETUP: WiFiManager configured and ready"));
+  Serial.println(F("SETUP: Device started - Hold config button for 3 seconds to start WiFi configuration"));
+  Serial.println(F("SETUP: No automatic WiFi connection will be attempted"));
+  #endif
 }
 
 /**
@@ -172,8 +193,10 @@ void setupOTA() {
  * it will start the configuration portal.
  */
 void startWiFiConnection() {
-  Serial.println("WIFI: Starting WiFi connection process...");
-  
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("WIFI: Starting WiFi connection process..."));
+  #endif
+
   // Ensure WiFi is properly disconnected and cleaned up first
   WiFi.disconnect(true);
   delay(100);
@@ -183,11 +206,15 @@ void startWiFiConnection() {
   delay(100);
   
   // First, try to connect with saved credentials without starting a portal
-  Serial.println("WIFI: Attempting to connect with saved credentials...");
-  
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("WIFI: Attempting to connect with saved credentials..."));
+  #endif
+
   // Check if we have saved credentials
   if (wifiManager.getWiFiIsSaved()) {
-    Serial.println("WIFI: Found saved credentials, attempting connection...");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("WIFI: Found saved credentials, attempting connection..."));
+    #endif
     WiFi.begin(); // Use saved credentials
     
     // Wait up to 10 seconds for connection
@@ -199,31 +226,41 @@ void startWiFiConnection() {
     }
     
     if (WiFi.status() == WL_CONNECTED) {
+      #ifdef OTA_DEBUG_ENABLED
       Serial.println("");
-      Serial.println("WIFI: Connected successfully with saved credentials!");
-      Serial.print("WIFI: Connected to: ");
+      Serial.println(F("WIFI: Connected successfully with saved credentials!"));
+      Serial.print(F("WIFI: Connected to: "));
       Serial.println(WiFi.SSID());
-      Serial.print("WIFI: IP address: ");
+      Serial.print(F("WIFI: IP address: "));
       Serial.println(WiFi.localIP());
+      #endif
       
       // Start the web server and OTA
       setupWebServerAndOTA();
       return; // Successfully connected, exit function
     } else {
+      #ifdef OTA_DEBUG_ENABLED
       Serial.println("");
-      Serial.println("WIFI: Failed to connect with saved credentials");
+      Serial.println(F("WIFI: Failed to connect with saved credentials"));
+      #endif
     }
   } else {
-    Serial.println("WIFI: No saved credentials found");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("WIFI: No saved credentials found"));
+    #endif
   }
   
   // Clean up WiFi before starting AP mode
-  Serial.println("WIFI: Cleaning up WiFi connection...");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("WIFI: Cleaning up WiFi connection..."));
+  #endif
   WiFi.disconnect(true);
   delay(500); // Give more time for cleanup
   
   // If we get here, either no saved credentials or connection failed
-  Serial.println("Set shouldStartConfigPortal = true");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("Set shouldStartConfigPortal = true"));
+  #endif
   shouldStartConfigPortal = true; // Let the main loop handle the portal
 }
 
@@ -236,7 +273,9 @@ void startWiFiConnection() {
 void setupWebServerAndOTA() {
   // Prevent multiple server setups
   if (isOTAServerRunning) {
-    Serial.println("OTA: Server already running, skipping setup");
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("OTA: Server already running, skipping setup"));
+    #endif
     return;
   }
 
@@ -280,8 +319,10 @@ void handlePortalStartup() {
     // }
     
     isPortalActive = true;
-    
-    Serial.println("CONFIG: Starting WiFi configuration portal (non-blocking)...");
+
+    #ifdef OTA_DEBUG_ENABLED
+    Serial.println(F("CONFIG: Starting WiFi configuration portal (non-blocking)..."));
+    #endif
 
     // Start configuration portal (non-blocking)
     wifiManager.setConfigPortalBlocking(false);
@@ -301,11 +342,15 @@ void handlePortalStartup() {
     wifiManager.setCustomHeadElement(successHTML.c_str());
 
     if (wifiManager.startConfigPortal("LL-MorphStaff") == false) {
-      Serial.println("CONFIG: Failed to start configuration portal");
+      #ifdef OTA_DEBUG_ENABLED
+      Serial.println(F("CONFIG: Failed to start configuration portal"));
+      #endif
       isPortalActive = false;
     } else {
-      Serial.println("CONFIG: Configuration portal started successfully (non-blocking)");
-      Serial.println("CONFIG: Main loop will continue while portal is active");
+      #ifdef OTA_DEBUG_ENABLED
+      Serial.println(F("CONFIG: Configuration portal started successfully (non-blocking)"));
+      Serial.println(F("CONFIG: Main loop will continue while portal is active"));
+      #endif
     }
   }
 }
@@ -321,36 +366,46 @@ void monitorActivePortal() {
   if (isPortalActive) {
     // Check if WiFi connected while portal is running
     if (WiFi.status() == WL_CONNECTED && !isOTAServerRunning) {
-      Serial.println("CONFIG: WiFi connected during portal session!");
-      Serial.print("CONFIG: Connected to: ");
+      #ifdef OTA_DEBUG_ENABLED
+      Serial.println(F("CONFIG: WiFi connected during portal session!"));
+      Serial.print(F("CONFIG: Connected to: "));
       Serial.println(WiFi.SSID());
-      Serial.print("CONFIG: IP address: ");
+      Serial.print(F("CONFIG: IP address: "));
       Serial.println(WiFi.localIP());
-      
+      #endif
+
       // Setup web server and OTA immediately when WiFi connects
       setupWebServerAndOTA();
       
       // Note: Portal may still be active, but OTA is now available
-      Serial.println("CONFIG: OTA server started while portal remains active");
+      #ifdef OTA_DEBUG_ENABLED
+      Serial.println(F("CONFIG: OTA server started while portal remains active"));
+      #endif
     }
     
     // Check if portal has timed out or been closed
     static unsigned long portalCheckTime = 0;
     if (millis() - portalCheckTime > 5000) { // Check every 5 seconds
       portalCheckTime = millis();
-      
-      Serial.println("CONFIG: Checking if configuration portal is still active...");
+
+      #ifdef OTA_DEBUG_ENABLED
+      Serial.println(F("CONFIG: Checking if configuration portal is still active..."));
+      #endif
 
       // If WiFiManager is no longer in portal mode, the portal has ended
       if (!wifiManager.getConfigPortalActive()) {
-        Serial.println("CONFIG: Configuration portal has ended");
+        #ifdef OTA_DEBUG_ENABLED
+        Serial.println(F("CONFIG: Configuration portal has ended"));
+        #endif
         isPortalActive = false;
         
         if (WiFi.status() == WL_CONNECTED && !isOTAServerRunning) {
           // WiFi connected but OTA server not started yet
           setupWebServerAndOTA();
         } else if (WiFi.status() != WL_CONNECTED) {
-          Serial.println("CONFIG: Portal ended without successful connection");
+          #ifdef OTA_DEBUG_ENABLED
+          Serial.println(F("CONFIG: Portal ended without successful connection"));
+          #endif
         }
       }
     }
@@ -373,13 +428,16 @@ void monitorWiFiConnection() {
       bool isConnected = (WiFi.status() == WL_CONNECTED);
       
       if (wasConnected && !isConnected) {
-        Serial.println("WIFI: Connection lost - attempting reconnection...");
+        #ifdef OTA_DEBUG_ENABLED
+        Serial.println(F("WIFI: Connection lost - attempting reconnection..."));
+        #endif
         isOTAServerRunning = false; // Will need to restart server when reconnected
       } else if (!wasConnected && isConnected) {
-        Serial.println("WIFI: Connection restored!");
-        Serial.print("WIFI: IP address: ");
+        #ifdef OTA_DEBUG_ENABLED
+        Serial.println(F("WIFI: Connection restored!"));
+        Serial.print(F("WIFI: IP address: "));
         Serial.println(WiFi.localIP());
-        
+        #endif
         // Restart OTA server if it was running before
         if (!isOTAServerRunning) {
           setupWebServerAndOTA();
@@ -421,24 +479,28 @@ void handleOTA() {
  * offline mode.
  */
 void disableWiFi() {
-  Serial.println("WIFI: Disabling WiFi and all related services...");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("WIFI: Disabling WiFi and all related services..."));
+  #endif
 
   // Stop the web server
   server.end();
   isOTAServerRunning = false;
-  Serial.println("HTTP: Web server stopped");
+  Serial.println(F("HTTP: Web server stopped"));
 
   // Stop the configuration portal if it's active
   if (isPortalActive) {
     wifiManager.stopConfigPortal();
     isPortalActive = false;
-    Serial.println("CONFIG: Configuration portal stopped");
+    Serial.println(F("CONFIG: Configuration portal stopped"));
   }
 
   // Disconnect and turn off WiFi hardware
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
-  Serial.println("WIFI: WiFi hardware disabled");
 
-  Serial.println("WIFI: All network services are now offline");
+  #ifdef OTA_DEBUG_ENABLED
+  Serial.println(F("WIFI: WiFi hardware disabled"));
+  Serial.println(F("WIFI: All network services are now offline"));
+  #endif
 }
