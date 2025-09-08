@@ -233,19 +233,9 @@ void startWiFiConnection() {
  * and ElegantOTA components.
  */
 void setupWebServerAndOTA() {
-  // Basic web server route
+  // Basic web server route - automatically redirect to OTA update page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String html = "<html><head><title>ESP32 ElegantOTA</title></head><body>";
-    html += "<h1>ESP32 ElegantOTA Device</h1>";
-    html += "<p><strong>WiFi Status:</strong> Connected</p>";
-    html += "<p><strong>SSID:</strong> " + WiFi.SSID() + "</p>";
-    html += "<p><strong>IP Address:</strong> " + WiFi.localIP().toString() + "</p>";
-    html += "<p><strong>Signal Strength:</strong> " + String(WiFi.RSSI()) + " dBm</p>";
-    html += "<hr>";
-    html += "<p><a href='/update'>OTA Update Portal</a></p>";
-    html += "<p><em>Device is ready for Over-The-Air updates</em></p>";
-    html += "</body></html>";
-    request->send(200, "text/html", html);
+    request->redirect("/update");
   });
 
   // Initialize ElegantOTA
