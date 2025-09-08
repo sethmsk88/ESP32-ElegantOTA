@@ -411,3 +411,34 @@ void handleOTA() {
   monitorActivePortal();
   monitorWiFiConnection();
 }
+
+/**
+ * Disable WiFi and stop all related services
+ * 
+ * This function completely shuts down WiFi, the web server, and the 
+ * configuration portal. It's designed to be called when WiFi functionality
+ * is no longer needed, allowing the device to operate in a low-power,
+ * offline mode.
+ */
+void disableWiFi() {
+  Serial.println("WIFI: Disabling WiFi and all related services...");
+
+  // Stop the web server
+  server.end();
+  isOTAServerRunning = false;
+  Serial.println("HTTP: Web server stopped");
+
+  // Stop the configuration portal if it's active
+  if (isPortalActive) {
+    wifiManager.stopConfigPortal();
+    isPortalActive = false;
+    Serial.println("CONFIG: Configuration portal stopped");
+  }
+
+  // Disconnect and turn off WiFi hardware
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  Serial.println("WIFI: WiFi hardware disabled");
+
+  Serial.println("WIFI: All network services are now offline");
+}

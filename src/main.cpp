@@ -23,13 +23,13 @@ unsigned long buttonPressStart = 0;  // Timestamp when button was first pressed
 bool buttonPressed = false;          // Current button state tracking
 
 /**
- * Check hardware button state and trigger WiFi configuration if held long enough
+ * Check hardware button state and trigger actions based on press duration
  * 
  * This function implements button debouncing and timing logic:
  * - Detects button press/release transitions
- * - Measures how long button is held down
- * - Triggers WiFi configuration portal if button held for 3+ seconds
- * - Uses active-low logic (button pressed = LOW reading)
+ * - Differentiates between a short "press" and a long "hold"
+ * - Triggers WiFi configuration portal if button is held for 3+ seconds
+ * - Triggers a different action for a short press and release
  * 
  * Called continuously from main loop for responsive button detection.
  */
@@ -40,18 +40,21 @@ void checkButton() {
     // Button transition: not pressed -> pressed
     buttonPressed = true;
     buttonPressStart = millis();  // Record when button press started
-    Serial.println("DEBUG: Config button pressed...");
+    Serial.println("DEBUG: Config button press detected...");
   } else if (!currentButtonState && buttonPressed) {
     // Button transition: pressed -> not pressed (released)
     buttonPressed = false;
     unsigned long pressDuration = millis() - buttonPressStart;
     
-    // Check if button was held long enough to trigger configuration
+    // Action for a "button hold"
     if (pressDuration >= BUTTON_PRESS_TIME) {
       Serial.printf("DEBUG: Button held for %lu ms - Starting WiFi config portal\n", pressDuration);
       startConfigPortal(); // Trigger WiFiManager configuration portal
-    } else {
-      Serial.printf("DEBUG: Button press too short (%lu ms) - ignored\n", pressDuration);
+    
+    // Action for a "button press" (and release)
+    } else if (pressDuration > 50) { // Debounce threshold of 50ms
+      Serial.println("DEBUG: Button clicked, disabling WiFi services...");
+      disableWiFi(); // Call the new function to shut down WiFi
     }
   }
 }
