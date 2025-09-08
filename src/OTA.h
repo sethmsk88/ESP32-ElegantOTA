@@ -132,8 +132,7 @@ void configureWiFiManager() {
   wifiManager.setMenu(menu);
   
   // Add custom HTML to show device information
-  String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";
-  customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>ESP32 ElegantOTA Configuration</h3>";
+  String customHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 10px; border: 2px solid #4CAF50;'>";  customHTML += "<h3 style='color: #2E8B57; margin: 0 0 10px 0;'>ESP32 ElegantOTA Configuration</h3>";
   customHTML += "</div>";
   
   // Set the custom HTML (this appears at the top of the config page)
@@ -292,26 +291,21 @@ void handlePortalStartup() {
     
     // Add custom HTML with connection success message that will show IP
     String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
-    successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
+    successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>Connection Successful!</h3>";
     successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
     successHTML += "<p style='margin: 5px 0; font-size: 14px;'>Portal will remain open until 3-minute timeout</p>";
     successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>You can now use other menu options or wait for automatic timeout</p>";
     successHTML += "</div>";
     
     // Set the success page HTML
-    wifiManager.setCustomHeadElement(successHTML.c_str());   
+    wifiManager.setCustomHeadElement(successHTML.c_str());
 
-    if (WiFi.status() != WL_CONNECTED) {
-      if (wifiManager.startConfigPortal("LL-MorphStaff") == false) {
-        Serial.println("CONFIG: Failed to start configuration portal");
-        isPortalActive = false;
-      } else {
-        Serial.println("CONFIG: Configuration portal started successfully (non-blocking)");
-        Serial.println("CONFIG: Main loop will continue while portal is active");
-      }
-    }
-    else {
-      Serial.println("CONFIG: WiFi connected before portal start, skipping portal");
+    if (wifiManager.startConfigPortal("LL-MorphStaff") == false) {
+      Serial.println("CONFIG: Failed to start configuration portal");
+      isPortalActive = false;
+    } else {
+      Serial.println("CONFIG: Configuration portal started successfully (non-blocking)");
+      Serial.println("CONFIG: Main loop will continue while portal is active");
     }
   }
 }
