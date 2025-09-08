@@ -143,7 +143,7 @@ void configureWiFiManager() {
     Serial.println("CONFIG: Configuration portal started");
     Serial.print("CONFIG: Connect to WiFi network: ");
     Serial.println(myWiFiManager->getConfigPortalSSID());
-    Serial.println("CONFIG: Open browser to configure WiFi");
+    Serial.println("CONFIG: Portal will timeout after 3 minutes");
   });
   
   Serial.println("CONFIG: WiFiManager configured");
@@ -199,11 +199,6 @@ void startWiFiConnection() {
       Serial.println(WiFi.SSID());
       Serial.print("WIFI: IP address: ");
       Serial.println(WiFi.localIP());
-      Serial.println("=========================================");
-      Serial.println("OTA UPDATE PORTAL READY!");
-      Serial.printf("Access from browser: http://%s:%s\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
-      Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT).c_str());
-      Serial.println("=========================================");
       
       // Start the web server and OTA
       setupWebServerAndOTA();
@@ -248,8 +243,7 @@ void setupWebServerAndOTA() {
 
   // Start the web server
   server.begin();
-  Serial.println("HTTP: Web server started");
-  Serial.println("OTA: ElegantOTA ready for updates");
+  Serial.println("OTA Web server started");
 }
 
 /**
@@ -270,14 +264,17 @@ void handleOTA() {
   if (shouldStartConfigPortal) {
     shouldStartConfigPortal = false;
     
-    Serial.println("CONFIG: Starting configuration portal...");
-    Serial.println("CONFIG: Connect to 'LL-MorphStaff' WiFi network");
-    Serial.println("CONFIG: Portal will timeout after 3 minutes");
+    Serial.println("CONFIG: Starting WiFi configuration portal...");
+    
+    // Ensure portal stays open after successful connection
+    wifiManager.setBreakAfterConfig(false);
     
     // Add custom HTML with connection success message that will show IP
     String successHTML = "<div style='text-align:center; margin: 20px; padding: 15px; background-color: #d4edda; border-radius: 10px; border: 2px solid #28a745;'>";
     successHTML += "<h3 style='color: #155724; margin: 0 0 10px 0;'>✅ Connection Successful!</h3>";
     successHTML += "<p style='margin: 5px 0; font-size: 16px;'><strong>Your ESP32 is now online!</strong></p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 14px;'>Portal will remain open until 3-minute timeout</p>";
+    successHTML += "<p style='margin: 5px 0; font-size: 12px; color: #666;'>You can now use other menu options or wait for automatic timeout</p>";
     // successHTML += "<p style='margin: 5px 0; font-size: 14px;'>OTA Update Portal will be available at:<br />";
     // successHTML += "<a href='http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update' target='_blank'>http://" + WiFi.localIP().toString() + ":" + String(OTA_SERVER_PORT) + "/update</a></p>";
     successHTML += "</div>";
@@ -289,7 +286,10 @@ void handleOTA() {
     wifiManager.setConfigPortalBlocking(true);
     bool result = wifiManager.startConfigPortal("LL-MorphStaff");
     
-    if (result) {
+    // Portal has finished (either timed out, user exited, or error occurred)
+    Serial.println("CONFIG: Configuration portal has ended");
+    
+    if (WiFi.status() == WL_CONNECTED) {
       Serial.println("CONFIG: WiFi configured successfully!");
       Serial.print("CONFIG: Connected to: ");
       Serial.println(WiFi.SSID());
@@ -301,10 +301,12 @@ void handleOTA() {
       Serial.printf("Direct OTA link: http://%s:%s/update\n", WiFi.localIP().toString().c_str(), String(OTA_SERVER_PORT));
       Serial.println("=========================================");
       
-      // Setup web server and OTA after successful configuration
+      // Setup web server and OTA after portal ends and we have connection
       setupWebServerAndOTA();
+    } else if (result) {
+      Serial.println("CONFIG: Configuration portal timed out - no connection established");
     } else {
-      Serial.println("CONFIG: Configuration portal timed out or failed");
+      Serial.println("CONFIG: Configuration portal failed or was cancelled");
     }
     
     // Reset to non-blocking mode
